@@ -93,6 +93,8 @@ After configuration, Ansible and other tools on your local machine will be able 
 For infrastructure provisioning and configuration, I chose Ansible because it provides a simple yet powerful way to manage infrastructure as code. It’s agentless, human-readable, and integrates seamlessly with cloud platforms like AWS. My goal was to create a reproducible and fully automated setup that could launch EC2 instances and install everything required for a production-ready deployment — without manual intervention. Ansible enabled me to define all provisioning logic in YAML playbooks and roles, which made the process clean, modular, and easy to reuse across different environments (e.g., dev, prod, stage).
 ![](assets/5.png)
 
+![](assets/6.png)
+
 ![](assets/12.png)
 
 
@@ -100,7 +102,6 @@ For infrastructure provisioning and configuration, I chose Ansible because it pr
 
 Using Ansible, I provisioned four EC2 instances on AWS — one each for the backend application, reverse proxy, monitoring, and CI/CD pipeline. I wrote a playbook that automatically interacts with the AWS API (via IAM credentials configured earlier), launches the instances using the appropriate AMI and instance type, assigns security groups, and ensures SSH access is properly configured. This automated provisioning step replaced the need to manually go through the AWS console or CLI for each server, saving time and ensuring consistency across environments.
 
-![](assets/6.png)
 
 Once the EC2 instances were provisioned, I executed a second Ansible playbook to handle all post-launch configuration. This included installing essential software such as Docker, Docker Compose, Python 3, pip, Git, and Java 17. For the reverse proxy, I used Ansible to install and configure Nginx, then set up a self-signed SSL certificate to simulate HTTPS using TLS. The backend instance was configured to run the Flask app and PostgreSQL using Docker Compose, both pulled and built automatically. The monitoring node had Prometheus and Grafana installed and configured, while the Jenkins instance was provisioned with all the tools required to run pipelines and handle CI/CD tasks. Each service was isolated and deployed in its own container to ensure separation of concerns and ease of management.
 
