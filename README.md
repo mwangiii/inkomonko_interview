@@ -224,6 +224,7 @@ This setup ensures automated, repeatable deployments with minimal manual interve
 
 ![](assets/20.png)
 
+![](assets/21.png)
 
 ## Step 4: **Monitoring & Logging with Prometheus and Grafana**
 
