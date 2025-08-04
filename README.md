@@ -85,7 +85,6 @@ For infrastructure provisioning and configuration, I chose Ansible because it pr
 Using Ansible, I provisioned four EC2 instances on AWS — one each for the backend application, reverse proxy, monitoring, and CI/CD pipeline. I wrote a playbook that automatically interacts with the AWS API (via IAM credentials configured earlier), launches the instances using the appropriate AMI and instance type, assigns security groups, and ensures SSH access is properly configured. This automated provisioning step replaced the need to manually go through the AWS console or CLI for each server, saving time and ensuring consistency across environments.
 
 ![](assets/6.png)
-![](assets/7.png)
 
 Once the EC2 instances were provisioned, I executed a second Ansible playbook to handle all post-launch configuration. This included installing essential software such as Docker, Docker Compose, Python 3, pip, Git, and Java 17. For the reverse proxy, I used Ansible to install and configure Nginx, then set up a self-signed SSL certificate to simulate HTTPS using TLS. The backend instance was configured to run the Flask app and PostgreSQL using Docker Compose, both pulled and built automatically. The monitoring node had Prometheus and Grafana installed and configured, while the Jenkins instance was provisioned with all the tools required to run pipelines and handle CI/CD tasks. Each service was isolated and deployed in its own container to ensure separation of concerns and ease of management.
 
@@ -97,6 +96,7 @@ The entire system was built to be idempotent and repeatable. I used Ansible role
 
 
 ## **Step 3: CI/CD Setup with Jenkins**
+![](assets/7.png)
 
 
 To implement continuous integration and deployment, I used Jenkins, running in a Docker container on a dedicated EC2 instance. Jenkins was installed and configured automatically using Ansible, which installed Java 17, Docker, and set up the Jenkins container with persistent storage. Port 8080 was opened to allow web access, and the initial admin setup was completed through the browser after retrieving the password from the container.
@@ -104,12 +104,125 @@ To implement continuous integration and deployment, I used Jenkins, running in a
 ![](assets/11.png)
 
 
+I created a pipeline job in Jenkins connected to my Flask app’s GitHub repository.
+The pipeline uses a Jenkinsfile stored in the repo, which defines two stages: cloning the repository and deploying the app using Docker Compose. Every time changes are pushed to the main branch, Jenkins automatically pulls the latest code, rebuilds the Docker containers, and restarts the services.
 
-I created a pipeline job in Jenkins connected to my Flask app’s GitHub repository. The pipeline uses a Jenkinsfile stored in the repo, which defines two stages: cloning the repository and deploying the app using Docker Compose. Every time changes are pushed to the main branch, Jenkins automatically pulls the latest code, rebuilds the Docker containers, and restarts the services.
+
+```
+  pipeline {
+    agent any
+
+    environment {
+      COMPOSE_PROJECT_NAME = "flask_auth_inkomonko"
+      PROMETHEUS_HOST = "http://51.21.128.35:9090"
+    }
+
+    stages {
+
+      stage('Set Compose Command') {
+        steps {
+          script {
+            // Check if 'docker compose' works; fallback to 'docker-compose'
+            def result = sh(script: 'docker compose version > /dev/null 2>&1', returnStatus: true)
+            env.DOCKER_COMPOSE_CMD = (result == 0) ? 'docker compose' : 'docker-compose'
+            echo "Using: ${env.DOCKER_COMPOSE_CMD}"
+          }
+        }
+      }
+
+      stage('Initial Cleanup') {
+        when {
+          branch 'main'
+        }
+        steps {
+          echo "Cleaning up previous Docker containers..."
+          sh '''
+            ${DOCKER_COMPOSE_CMD} down --remove-orphans || true
+            docker system prune -f -a --volumes || true
+          '''
+        }
+      }
+
+      stage('Clone') {
+        steps {
+          echo "Cloning repository..."
+          checkout scm
+        }
+      }
+
+      stage('Prepare .env File') {
+        when {
+          branch 'main'
+        }
+        steps {
+          echo "Renaming 'environments' to '.env'..."
+          sh '''
+            if [ -f environments ]; then
+              mv environments .env
+              echo ".env file prepared."
+            else
+              echo "environments file not found!"
+              exit 1
+            fi
+          '''
+        }
+      }
+
+      stage('Tests (Skipped)') {
+        steps {
+          echo "Skipping tests for now..."
+          sh 'echo "tests would run here"'
+        }
+      }
+
+      stage('Build and Start with Docker Compose') {
+        when {
+          branch 'main'
+        }
+        steps {
+          echo "Building and starting containers with Docker Compose..."
+          sh '${DOCKER_COMPOSE_CMD} up -d --build'
+        }
+      }
+
+      stage('Prometheus Health Check') {
+        when {
+          branch 'main'
+        }
+        steps {
+          echo "Querying Prometheus for application health..."
+          sh '''
+            echo "Checking Prometheus 'up' metrics..."
+            RESPONSE=$(curl -s "${PROMETHEUS_HOST}/api/v1/query?query=up")
+            echo "$RESPONSE"
+
+            echo "$RESPONSE" | grep '"value"' | grep '"1"' > /dev/null
+            if [ $? -ne 0 ]; then
+              echo "Prometheus did not return expected 'up' value!"
+              exit 1
+            else
+              echo "Prometheus confirms services are UP."
+            fi
+          '''
+        }
+      }
+
+    }
+
+    post {
+      always {
+        echo "Pipeline finished."
+      }
+    }
+  }
+
+```
 
 ![](assets/18.png)
 
 This setup ensures automated, repeatable deployments with minimal manual intervention. It provides immediate feedback on build or deployment failures, helping maintain reliability as the app evolves.
+
+![](assets/20.png)
 
 
 ## Step 4: **Monitoring & Logging with Prometheus and Grafana**
