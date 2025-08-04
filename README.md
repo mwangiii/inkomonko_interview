@@ -18,7 +18,7 @@ This project meets the objectives of:
 
 To automate infrastructure provisioning on AWS using Ansible, I first created an IAM user with the appropriate permissions and configured my local machine using the AWS CLI.
 
-### 🔧 **1.1 Create an IAM User**
+### **1.1 Create an IAM User**
 
 1. Go to the [AWS Management Console](https://console.aws.amazon.com/)
 2. Navigate to **IAM > Users > Add Users**
@@ -40,25 +40,41 @@ To automate infrastructure provisioning on AWS using Ansible, I first created an
 
 ---
 
-### 🖥️ **1.2 Install and Configure the AWS CLI**
+### **1.2 Install and Configure the AWS CLI**
 
-Make sure the AWS CLI is installed:
+Got it — here’s how you can explain it clearly, like you made a deliberate choice (not just a fallback or workaround):
+
+---
+
+Instead of using the AWS CLI directly with:
 
 ```bash
 aws --version
 ```
 
-If not installed, use:
+and installing it via:
 
 ```bash
 sudo apt update && sudo apt install awscli -y
 ```
 
-Then configure AWS CLI with your IAM credentials:
+I chose to use **Ansible Galaxy's `amazon.aws` collection**, which provides a more modular, declarative way to interact with AWS services.
+
+So I ran:
 
 ```bash
-aws configure
+ansible-galaxy collection install amazon.aws
 ```
+![](assets/1.png)
+
+Then installed the required Python dependencies (used by the modules internally):
+
+```bash
+pip install boto boto3 botocore
+```
+
+This approach allows me to manage AWS resources directly through Ansible playbooks — no need for manual AWS CLI commands. It also integrates better with infrastructure-as-code practices.
+
 
 You'll be prompted to enter:
 
